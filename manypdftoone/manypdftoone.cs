@@ -17,23 +17,25 @@ namespace manypdftoone
         private List<SourceFile> _sourceFilesDef = new List<SourceFile>();
         private string _gsfileName = string.Empty;
         private Regex _rxFileName = new Regex("^[^\\/\\\\:\\*\\?\"\\<\\>\\|()]+$", RegexOptions.IgnoreCase);
+        private List<string> _tmptoDel = new List<string>();
 
         /// <summary>
         /// Initialize class with instantiate all objects.
         /// </summary>
         /// <param name="sourceDir">Source directory for find all pdf files</param>
-        /// <param name="destinationFile"></param>
+        /// <param name="destinationFile">Path to destination file</param>
+        /// <param name="mergeMode">It is for switch between straigth merge pdf files, or add blank page for each document with odd pages for properly print on two side printer.</param>
         public ManyPdfToOne(string sourceDir, string destinationFile, eMergePagesMode mergeMode)
         {
             Init(sourceDir, destinationFile, mergeMode);
         }
 
         /// <summary>
-        /// 
+        /// Initializing base file info objects
         /// </summary>
-        /// <param name="sourceDir"></param>
-        /// <param name="destinationDir"></param>
-        /// <param name="mergeMode"></param>
+        /// <param name="sourceDir">Source directory for find all pdf files</param>
+        /// <param name="destinationFile">Path to destination file</param>
+        /// <param name="mergeMode">It is for switch between straigth merge pdf files, or add blank page for each document with odd pages for properly print on two side printer.</param>
         private void Init(string sourceDir, string destinationFile, eMergePagesMode mergeMode)
         {
             _sourceDir = new DirectoryInfo(sourceDir);
@@ -44,7 +46,7 @@ namespace manypdftoone
         }
 
         /// <summary>
-        /// 
+        /// Main merge function
         /// </summary>
         public void Merge()
         {
@@ -82,7 +84,9 @@ namespace manypdftoone
             {
                 SourceFile sf = new SourceFile();
                 sf.FilePath = _sourceFiles[i].FullName.Replace("\\", "/").Trim();
-                sf.PagesCount = CountPages(sf.FilePath);
+
+                if (_mergeMode == eMergePagesMode.TwoSide)
+                    sf.PagesCount = CountPages(sf.FilePath);
 
                 if (!_rxFileName.IsMatch(new FileInfo(sf.FilePath).Name))
                     throw new Exception(string.Format("Nieprawidłowa nazwa pliku {0}. Niedozwolone znaki space^/\\:*?\"<>|()", new FileInfo(sf.FilePath).Name));
@@ -110,24 +114,37 @@ namespace manypdftoone
             Console.WriteLine(gsMergeCommand.ToString());
 
             RunMerge(gsMergeCommand.ToString());
+
+            foreach (string f in _tmptoDel)
+            {
+                try
+                {
+                    File.Delete(f);
+                }
+                catch (Exception)
+                {
+
+                }
+            }
+            
         }
 
         /// <summary>
-        /// 
+        /// Main merge function with parameters omited in constructor.
         /// </summary>
-        /// <param name="sourceDir"></param>
-        /// <param name="destinationDir"></param>
-        /// <param name="mergeMode"></param>
-        public void Merge(string sourceDir, string destinationDir, eMergePagesMode mergeMode)
+        /// <param name="sourceDir">Source directory for find all pdf files</param>
+        /// <param name="destinationDir">Path to destination file</param>
+        /// <param name="mergeMode">It is for switch between straigth merge pdf files, or add blank page for each document with odd pages for properly print on two side printer.</param>
+        public void Merge(string sourceDir, string destinationFile, eMergePagesMode mergeMode)
         {
-            Init(sourceDir, destinationDir, mergeMode);
+            Init(sourceDir, destinationFile, mergeMode);
             Merge();
         }
 
         /// <summary>
-        /// 
+        /// run proces of gswin32 / 64 with supplied command.
         /// </summary>
-        /// <param name="command"></param>
+        /// <param name="command">command line params for gs</param>
         private void RunMerge(string command)
         {
             ShellProcess sp = new ShellProcess();
@@ -139,15 +156,25 @@ namespace manypdftoone
                 throw new Exception(response[0] + response[1]);
         }
 
+        /// <summary>
+        /// Returns path to blank page created from resource in temp
+        /// </summary>
+        /// <returns>SourceFile object for temp blank page</returns>
         private SourceFile GetEvenPage()
         {
             SourceFile sf = new SourceFile();
             sf.FilePath = Path.GetTempFileName();
+            _tmptoDel.Add(sf.FilePath);
             ExtractSaveResource("manypdftoone.Resources.blank.pdf", sf.FilePath);
             sf.PagesCount = CountPages(sf.FilePath);
             return sf;
         }
 
+        /// <summary>
+        /// Run gswin process for count pages in pdf docs.
+        /// </summary>
+        /// <param name="filePath">As named</param>
+        /// <returns>Pages count.</returns>
         private int CountPages(string filePath)
         {
             int pc = -1;
@@ -163,6 +190,11 @@ namespace manypdftoone
             return pc;
         }
 
+        /// <summary>
+        /// Method extracts resource with blank pdf page to temp file.
+        /// </summary>
+        /// <param name="filename">destination file</param>
+        /// <param name="location">resource location</param>
         private void ExtractSaveResource(String filename, String location)
         {
             System.Reflection.Assembly a = System.Reflection.Assembly.GetExecutingAssembly();

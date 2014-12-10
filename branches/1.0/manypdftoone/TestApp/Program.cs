@@ -10,8 +10,12 @@ namespace TestApp
     {
         static void Main(string[] args)
         {
-            manypdftoone.ManyPdfToOne mpto = new manypdftoone.ManyPdfToOne(@"C:\Users\pbrzezinski\Downloads", @"C:\Users\pbrzezinski\Documents\MPdf", manypdftoone.eMergePagesMode.TwoSide);
+            manypdftoone.ManyPdfToOne mpto
+                = new manypdftoone.ManyPdfToOne(@"C:\Users\pbrzezinski\Documents\MPdf"
+                    , @"C:\Users\pbrzezinski\Documents\MPdfOut\output.pdf"
+                    , manypdftoone.eMergePagesMode.TwoSide);
             mpto.Merge();
+            Console.ReadKey();
         }
     }
 }
